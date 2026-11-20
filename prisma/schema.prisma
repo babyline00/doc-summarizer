@@ -1,0 +1,67 @@
+// Doc Summarizer Browser Extension — Prisma schema
+// SQLite is the local-first store. A Session groups one or more Pages (each
+// page = a URL, pasted text, or YouTube transcript that was summarised). The
+// follow-up chat (ChatMessage) and saved highlights (Highlight) both belong to
+// the session, so a multi-page session's RAG chat can reference any of its
+// pages.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Session {
+  id         String        @id @default(cuid())
+  name       String?
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
+  pages      Page[]
+  messages   ChatMessage[]
+  highlights Highlight[]
+}
+
+model Page {
+  id            String      @id @default(cuid())
+  sessionId     String
+  session       Session     @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  url           String?
+  title         String
+  content       String
+  summary       String?
+  summaryLength String
+  sourceType    String
+  // JSON-stringified array of { ordinal, heading, content, tokens: string[] }
+  tokens        String
+  // JSON-stringified array of number[] (per-chunk embedding vectors, parallel to tokens)
+  embedding     String
+  createdAt     DateTime    @default(now())
+  highlights    Highlight[]
+  @@index([sessionId])
+}
+
+model ChatMessage {
+  id        String   @id @default(cuid())
+  sessionId String
+  session   Session  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  role      String
+  content   String
+  citations String?
+  createdAt DateTime @default(now())
+  @@index([sessionId])
+}
+
+model Highlight {
+  id        String   @id @default(cuid())
+  sessionId String
+  session   Session  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  pageId    String?
+  page      Page?    @relation(fields: [pageId], references: [id], onDelete: SetNull)
+  text      String
+  note      String?
+  createdAt DateTime @default(now())
+  @@index([sessionId])
+}
